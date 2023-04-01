@@ -6,7 +6,7 @@ from fastapi import status
 from starlette.testclient import TestClient
 
 from app.models import User
-from tests.factories import create_user
+from tests.factories import create_user, login_user
 
 USERS_URL = "/users/"
 
@@ -16,11 +16,16 @@ async def test_list_users(client: TestClient):
     await create_user(email="email1@example.com", password="s3cret")
     await create_user(email="email2@example.com", password="s3cret")
     await create_user(email="email3@example.com", password="s3cret")
-    response = client.get(USERS_URL)
+
+    access_token = await login_user(client)
+    response = client.get(
+        USERS_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
     response_json = json.loads(response.content)
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(response_json) == 3
+    assert len(response_json) == 4  # 3 dummy users + 1 admin for login purposes
     for record in response_json:
         assert not "password" in record
         assert not "hashed_password" in record
@@ -28,8 +33,11 @@ async def test_list_users(client: TestClient):
 
 @pytest.mark.asyncio
 async def test_create_user(client: TestClient):
+    access_token = await login_user(client)
     response = client.post(
-        USERS_URL, json={"email": "email1@example.com", "password": "s3cret"}
+        USERS_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"email": "email1@example.com", "password": "s3cret"},
     )
     response_json = json.loads(response.content)
     user_id = response_json["id"]
@@ -42,7 +50,12 @@ async def test_create_user(client: TestClient):
 
 @pytest.mark.asyncio
 async def test_create_user_missing_password(client: TestClient):
-    response = client.post(USERS_URL, json={"email": "email1@example.com"})
+    access_token = await login_user(client)
+    response = client.post(
+        USERS_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"email": "email1@example.com"},
+    )
     response_json = json.loads(response.content)
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -51,9 +64,12 @@ async def test_create_user_missing_password(client: TestClient):
 
 @pytest.mark.asyncio
 async def test_retrieve_user(client: TestClient):
+    access_token = await login_user(client)
     user = await create_user(email="email1@example.com", password="s3cret")
     user_id = user.id
-    response = client.get(USERS_URL + f"{user_id}/")
+    response = client.get(
+        USERS_URL + f"{user_id}/", headers={"Authorization": f"Bearer {access_token}"}
+    )
     response_json = json.loads(response.content)
 
     assert response.status_code == status.HTTP_200_OK
@@ -64,10 +80,13 @@ async def test_retrieve_user(client: TestClient):
 
 @pytest.mark.asyncio
 async def test_patch_user(client: TestClient):
+    access_token = await login_user(client)
     user = await create_user(email="email1@example.com", password="s3cret")
     user_id = user.id
     response = client.patch(
-        USERS_URL + f"{user_id}/", json={"email": "email2@example.com"}
+        USERS_URL + f"{user_id}/",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"email": "email2@example.com"},
     )
     response_json = json.loads(response.content)
 
@@ -79,9 +98,12 @@ async def test_patch_user(client: TestClient):
 
 @pytest.mark.asyncio
 async def test_delete_user(client: TestClient):
+    access_token = await login_user(client)
     user = await create_user(email="email1@example.com", password="s3cret")
     user_id = user.id
-    response = client.delete(USERS_URL + f"{user_id}/")
+    response = client.delete(
+        USERS_URL + f"{user_id}/", headers={"Authorization": f"Bearer {access_token}"}
+    )
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert not response.content
@@ -91,14 +113,21 @@ async def test_delete_user(client: TestClient):
 @pytest.mark.asyncio
 async def test_not_found_user(client: TestClient):
     user_id = uuid4()
+    access_token = await login_user(client)
 
-    response = client.get(USERS_URL + f"{user_id}/")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    response = client.patch(
-        USERS_URL + f"{user_id}/", json={"email": "email2@example.com"}
+    response = client.get(
+        USERS_URL + f"{user_id}/", headers={"Authorization": f"Bearer {access_token}"}
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    response = client.delete(USERS_URL + f"{user_id}/")
+    response = client.patch(
+        USERS_URL + f"{user_id}/",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"email": "email2@example.com"},
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    response = client.delete(
+        USERS_URL + f"{user_id}/", headers={"Authorization": f"Bearer {access_token}"}
+    )
     assert response.status_code == status.HTTP_404_NOT_FOUND
