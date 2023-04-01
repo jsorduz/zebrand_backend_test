@@ -1,10 +1,22 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 
 from app.models import Product as ProductModel
-from app.routes.deps import get_current_user, get_product_from_db
+from app.routes.deps import (
+    get_current_user,
+    get_current_user_or_none,
+    get_product_from_db,
+)
 from app.schemas import ProductCreateSchema, ProductSchema, ProductUpdateSchema
 
 router = APIRouter()
+
+
+async def increase_product_views(request: Request, product: ProductModel):
+    """
+    TODO: Do something with the request data for further understanding of who and how is the products been queried
+    """
+    product.views += 1
+    await product.save()
 
 
 @router.get(
@@ -31,15 +43,16 @@ async def create_product(product_in: ProductCreateSchema) -> ProductModel:
     return await ProductModel.create(**product_in.dict(exclude_unset=True))
 
 
-@router.get(
-    "/products/{product_id}/",
-    # Admin and Anonymous users can query this endpoints without restrictions
-    # dependencies=[Depends(get_current_user)],
-    response_model=ProductSchema,
-)
+@router.get("/products/{product_id}/", response_model=ProductSchema)
 async def retrieve_product(
+    request: Request,
+    background_tasks: BackgroundTasks,
     product: ProductModel = Depends(get_product_from_db),
+    current_user=Depends(get_current_user_or_none),
 ) -> ProductModel | None:
+    # Anonymous user is querying an specific product, we need to increase its views
+    if current_user is None:
+        background_tasks.add_task(increase_product_views, request, product)
     return product
 
 

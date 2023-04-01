@@ -1,3 +1,4 @@
+import asyncio
 import json
 from uuid import uuid4
 
@@ -75,25 +76,35 @@ async def test_retrieve_product(client: TestClient):
     access_token = await login_user(client)
     product = await create_product(sku="Sku1", price=1.0, name="Product1")
     product_id = product.id
+    before_views = product.views
     response = client.get(
         PRODUCTS_URL + f"{product_id}/",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     response_json = json.loads(response.content)
+    # Wait until background task increase product views
+    await asyncio.sleep(0.5)
+    product_in_db = await Product.get(id=product_id)
 
     assert response.status_code == status.HTTP_200_OK
     assert response_json["name"] == "Product1"
+    assert product_in_db.views == before_views
 
 
 @pytest.mark.asyncio
 async def test_retrieve_product_anonymous_user(client: TestClient):
     product = await create_product(sku="Sku1", price=1.0, name="Product1")
     product_id = product.id
+    before_views = product.views
     response = client.get(PRODUCTS_URL + f"{product_id}/")
     response_json = json.loads(response.content)
+    # Wait until background task increase product views
+    await asyncio.sleep(0.5)
+    product_in_db = await Product.get(id=product_id)
 
     assert response.status_code == status.HTTP_200_OK
     assert response_json["name"] == "Product1"
+    assert product_in_db.views == before_views + 1
 
 
 @pytest.mark.asyncio

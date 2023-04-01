@@ -27,6 +27,7 @@ class TokenData(BaseModel):
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token/")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token/", auto_error=None)
 
 
 async def authenticate_user(username: str, password: str):
