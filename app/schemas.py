@@ -50,3 +50,27 @@ class BrandUpdateSchema(BrandBaseSchema):
 
 class BrandSchema(UUIDPkMixin, TimeStampedMixin, BrandBaseSchema):
     pass
+
+
+class ProductBaseSchema(BaseModel):
+    sku: str
+    name: str
+    price: float
+
+
+class ProductCreateSchema(ProductBaseSchema):
+    pass
+
+
+class ProductUpdateSchema(ProductBaseSchema):
+    sku: str | None = None
+    name: str | None = None
+    price: float | None = None
+
+
+class ProductSchema(UUIDPkMixin, TimeStampedMixin, ProductBaseSchema):
+    pass
+
+
+class ProductDetailSchema(UUIDPkMixin, TimeStampedMixin, ProductBaseSchema):
+    views: int

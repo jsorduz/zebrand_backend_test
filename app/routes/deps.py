@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from jose import JWTError, jwt
 
 from app.models import Brand as BrandModel
+from app.models import Product as ProductModel
 from app.models import User as UserModel
 from app.routes.auth import ALGORITHM, SECRET_KEY, TokenData, oauth2_scheme
 
@@ -27,6 +28,16 @@ async def get_brand_from_db(brand_id: UUID) -> BrandModel:
             detail="brand not found",
         )
     return brand
+
+
+async def get_product_from_db(product_id: UUID) -> ProductModel:
+    product = await ProductModel.get(id=product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="product not found",
+        )
+    return product
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):

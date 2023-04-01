@@ -49,9 +49,9 @@ class Product(UUIDMixin, TimeStampedMixin):
     )
     name = fields.CharField(max_length=VARCHAR_MAX_LENGTH, null=False)
     price = fields.FloatField(null=False)
-    views = fields.IntField(null=False)
+    views = fields.IntField(default=0)
     brand = fields.ForeignKeyField(
-        "models.Brand", related_name="users", on_delete=fields.RESTRICT, null=False
+        "models.Brand", related_name="products", on_delete=fields.RESTRICT, null=True
     )
 
     class Meta:
