@@ -1,28 +1,52 @@
-from fastapi import APIRouter, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.models import User as UserModel
+from app.routes.deps import get_user_from_db
+from app.schemas import UserCreateSchema, UserSchema, UserUpdateSchema
 
 router = APIRouter()
 
 
-@router.get("/users/")
-async def list_users():
-    return {"message": "list users"}
+@router.get(
+    "/users/",
+    response_model=list[UserSchema],
+)
+async def list_users(
+    offset: int = 0,
+    limit: int = 100,
+    order_by: str = "email",
+) -> list[UserModel]:
+    return await UserModel.all().order_by(order_by).offset(offset).limit(limit)
 
 
-@router.post("/users/", status_code=status.HTTP_201_CREATED)
-async def create_user():
-    return {"message": "create user"}
+@router.post("/users/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreateSchema) -> UserModel:
+    return await UserModel.create(
+        **user_in.dict(exclude_unset=True),
+        hashed_password=UserModel.hash_password(user_in.password),
+    )
 
 
-@router.get("/users/{user_id}/")
-async def retrieve_user(user_id: int):
-    return {"message": f"retrieve user {user_id}"}
+@router.get("/users/{user_id}/", response_model=UserSchema)
+async def retrieve_user(
+    user: UserModel = Depends(get_user_from_db),
+) -> UserModel | None:
+    return user
 
 
 @router.patch("/users/{user_id}/")
-async def patch_user(user_id: int):
-    return {"message": f"patch user {user_id}"}
+async def patch_user(
+    user_in: UserUpdateSchema, user: UserModel = Depends(get_user_from_db)
+):
+    update_data = user_in.dict(exclude_unset=True)
+    for field, _ in update_data.items():
+        setattr(user, field, update_data[field])
+    await user.save()
+    return await UserModel.get(id=user.id)
 
 
 @router.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int):
-    pass
+async def delete_user(user: UserModel = Depends(get_user_from_db)):
+    await user.delete()

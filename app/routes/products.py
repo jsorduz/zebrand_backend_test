@@ -7,6 +7,7 @@ router = APIRouter()
 async def list_products():
     return {"message": "list products"}
 
+
 @router.post("/products/", status_code=status.HTTP_201_CREATED)
 async def create_product():
     return {"message": "create product"}
