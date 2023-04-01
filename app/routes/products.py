@@ -9,7 +9,8 @@ router = APIRouter()
 
 @router.get(
     "/products/",
-    dependencies=[Depends(get_current_user)],
+    # Admin and Anonymous users can query this endpoints without restrictions
+    # dependencies=[Depends(get_current_user)],
     response_model=list[ProductSchema],
 )
 async def list_products(
@@ -32,7 +33,8 @@ async def create_product(product_in: ProductCreateSchema) -> ProductModel:
 
 @router.get(
     "/products/{product_id}/",
-    dependencies=[Depends(get_current_user)],
+    # Admin and Anonymous users can query this endpoints without restrictions
+    # dependencies=[Depends(get_current_user)],
     response_model=ProductSchema,
 )
 async def retrieve_product(

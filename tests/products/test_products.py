@@ -29,6 +29,19 @@ async def test_list_products(client: TestClient):
 
 
 @pytest.mark.asyncio
+async def test_list_products_anomyous_user(client: TestClient):
+    await create_product(sku="Sku1", price=1.0, name="Product1")
+    await create_product(sku="Sku2", price=1.0, name="Product2")
+    await create_product(sku="Sku3", price=1.0, name="Product3")
+
+    response = client.get(PRODUCTS_URL)
+    response_json = json.loads(response.content)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response_json) == 3
+
+
+@pytest.mark.asyncio
 async def test_create_product(client: TestClient):
     access_token = await login_user(client)
     response = client.post(
@@ -66,6 +79,17 @@ async def test_retrieve_product(client: TestClient):
         PRODUCTS_URL + f"{product_id}/",
         headers={"Authorization": f"Bearer {access_token}"},
     )
+    response_json = json.loads(response.content)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response_json["name"] == "Product1"
+
+
+@pytest.mark.asyncio
+async def test_retrieve_product_anonymous_user(client: TestClient):
+    product = await create_product(sku="Sku1", price=1.0, name="Product1")
+    product_id = product.id
+    response = client.get(PRODUCTS_URL + f"{product_id}/")
     response_json = json.loads(response.content)
 
     assert response.status_code == status.HTTP_200_OK
