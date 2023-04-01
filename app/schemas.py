@@ -34,3 +34,19 @@ class UserUpdateSchema(UserBaseSchema):
 
 class UserSchema(UUIDPkMixin, TimeStampedMixin, UserBaseSchema):
     pass
+
+
+class BrandBaseSchema(BaseModel):
+    name: str
+
+
+class BrandCreateSchema(BrandBaseSchema):
+    pass
+
+
+class BrandUpdateSchema(BrandBaseSchema):
+    pass
+
+
+class BrandSchema(UUIDPkMixin, TimeStampedMixin, BrandBaseSchema):
+    pass

@@ -2,7 +2,7 @@ import json
 
 from starlette.testclient import TestClient
 
-from app.models import User
+from app.models import Brand, User
 
 LOGIN_URL = "/token/"
 
@@ -10,6 +10,11 @@ LOGIN_URL = "/token/"
 async def create_user(email: str, password: str):
     # TODO: create a factory method that creates more than one user at the same time with dummy values
     return await User.create(email=email, hashed_password=User.hash_password(password))
+
+
+async def create_brand(name: str):
+    # TODO: create a factory method that creates more than one at the same time with dummy values
+    return await Brand.create(name=name)
 
 
 async def login_user(client: TestClient) -> str:
