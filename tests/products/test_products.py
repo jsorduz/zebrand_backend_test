@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from uuid import uuid4
 
 import pytest
@@ -43,32 +44,41 @@ async def test_list_products_anomyous_user(client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_create_product(client: TestClient):
+async def test_create_product(client: TestClient, caplog):
     access_token = await login_user(client)
-    response = client.post(
-        PRODUCTS_URL,
-        headers={"Authorization": f"Bearer {access_token}"},
-        json={"sku": "Sku1", "name": "Product1", "price": 1.0},
-    )
-    response_json = json.loads(response.content)
-    product_id = response_json["id"]
+    with caplog.at_level(logging.INFO):
+        response = client.post(
+            PRODUCTS_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"sku": "Sku1", "name": "Product1", "price": 1.0},
+        )
+        response_json = json.loads(response.content)
+        product_id = response_json["id"]
 
-    assert response.status_code == status.HTTP_201_CREATED
-    assert await Product.get_or_none(id=product_id)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert await Product.get_or_none(id=product_id)
+        assert "Added new product" in caplog.text
+        assert "Deleted product" not in caplog.text
+        assert "Updated product" not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_create_product_missing_name(client: TestClient):
+async def test_create_product_missing_name(client: TestClient, caplog):
     access_token = await login_user(client)
-    response = client.post(
-        PRODUCTS_URL,
-        headers={"Authorization": f"Bearer {access_token}"},
-        json={},
-    )
-    response_json = json.loads(response.content)
 
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    assert response_json["detail"][0]["msg"] == "field required"
+    with caplog.at_level(logging.INFO):
+        response = client.post(
+            PRODUCTS_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={},
+        )
+        response_json = json.loads(response.content)
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response_json["detail"][0]["msg"] == "field required"
+        assert "Added new product" not in caplog.text
+        assert "Deleted product" not in caplog.text
+        assert "Updated product" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -108,36 +118,64 @@ async def test_retrieve_product_anonymous_user(client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_patch_product(client: TestClient):
+async def test_patch_product(client: TestClient, caplog):
     access_token = await login_user(client)
     product = await create_product(sku="Sku1", price=1.0, name="Product1")
     product_id = product.id
-    response = client.patch(
-        PRODUCTS_URL + f"{product_id}/",
-        headers={"Authorization": f"Bearer {access_token}"},
-        json={"name": "Product2"},
-    )
-    response_json = json.loads(response.content)
 
-    product_in_db = await Product.get(id=product_id)
-    assert response.status_code == status.HTTP_200_OK
-    assert response_json["name"] == "Product2"
-    assert product_in_db.name == "Product2"
+    with caplog.at_level(logging.INFO):
+        response = client.patch(
+            PRODUCTS_URL + f"{product_id}/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"name": "Product2"},
+        )
+        response_json = json.loads(response.content)
+
+        product_in_db = await Product.get(id=product_id)
+        assert response.status_code == status.HTTP_200_OK
+        assert response_json["name"] == "Product2"
+        assert product_in_db.name == "Product2"
+        assert "Added new product" not in caplog.text
+        assert "Deleted product" not in caplog.text
+        assert "Updated product" in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_delete_product(client: TestClient):
+async def test_patch_product_no_change(client: TestClient, caplog):
     access_token = await login_user(client)
     product = await create_product(sku="Sku1", price=1.0, name="Product1")
     product_id = product.id
-    response = client.delete(
-        PRODUCTS_URL + f"{product_id}/",
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert not response.content
-    assert not await Product.get_or_none(id=product_id)
+    with caplog.at_level(logging.INFO):
+        response = client.patch(
+            PRODUCTS_URL + f"{product_id}/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"name": "Product1"},  # In the end the product name doesn't change
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert "Added new product" not in caplog.text
+        assert "Deleted product" not in caplog.text
+        assert "Updated product" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_delete_product(client: TestClient, caplog):
+    access_token = await login_user(client)
+    product = await create_product(sku="Sku1", price=1.0, name="Product1")
+    product_id = product.id
+
+    with caplog.at_level(logging.INFO):
+        response = client.delete(
+            PRODUCTS_URL + f"{product_id}/",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not response.content
+        assert not await Product.get_or_none(id=product_id)
+        assert "Added new product" not in caplog.text
+        assert "Deleted product" in caplog.text
+        assert "Updated product" not in caplog.text
 
 
 @pytest.mark.asyncio
